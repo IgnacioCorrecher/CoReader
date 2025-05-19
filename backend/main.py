@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, status, WebSocket, File, UploadFile
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from RAGChain import vector_store, text_splitter, rag_chain
 import logging
@@ -12,6 +13,25 @@ logger = logging.getLogger(__name__)
 
 # Init App
 app = FastAPI()
+
+# CORS Configuration
+origins = [
+    "http://localhost:5173",  # Frontend origin
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+    ],
+    allow_headers=["*"],
+)
 
 
 @app.get("/", tags=["General"])

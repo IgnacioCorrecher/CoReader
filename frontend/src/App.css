@@ -1,39 +1,781 @@
-.main-div {
-  width: 100vw;
-  height: 100vh;
+/* General Reset & Body Styling */
+html {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: hidden; /* Prevent scrolling on html level */
 }
 
-.header-container {
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+:root {
+  --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Light Theme - ChatGPT Inspired */
+  --bg-app: #f9f9f9; /* Overall app background */
+  --bg-sidebar: #202123; /* Dark sidebar */
+  --sidebar-text: #ececf1;
+  --sidebar-text-secondary: #c5c5d2;
+  --sidebar-border: #353740;
+  --new-chat-button-bg: transparent;
+  --new-chat-button-text: var(--sidebar-text);
+  --new-chat-button-border: var(--sidebar-text-secondary);
+  --new-chat-button-hover-bg: #343541;
+
+  --bg-main-chat: #ffffff; /* Main chat area background */
+  --text-primary: #374151; /* Main text color */
+  --text-secondary: #6b7280;
+  --text-light: #f3f4f6; /* For text on dark backgrounds like user message */
+
+  --user-message-bg: #3b82f6; /* Example: Blue for user messages */
+  --user-message-text: white;
+  --ai-message-bg: #f3f4f6; /* Light gray for AI messages */
+  --ai-message-text: var(--text-primary);
+
+  --input-area-bg: var(--bg-main-chat);
+  --input-border: #e5e7eb;
+  --input-text: var(--text-primary);
+  --input-placeholder: #9ca3af;
+  --button-primary-bg: var(--accent-color); /* Re-use accent or define new */
+  --button-primary-text: white;
+  --button-disabled-bg: #d1d5db;
+
+  --accent-color: #10a37f; /* ChatGPT-like accent (teal/green) */
+  --accent-color-hover: #0e8e6f;
+
+  /* Existing for toggles, adjust if needed */
+  --border-color: #d1d5db; 
+  --border-color-light: #e5e7eb;
+}
+
+.dark-theme {
+  --bg-app: #343541;
+  --bg-sidebar: #202123; /* Sidebar often stays dark */
+  --sidebar-text: #ececf1;
+  --sidebar-text-secondary: #c5c5d2;
+  --sidebar-border: #454850;
+  --new-chat-button-hover-bg: #40414f;
+
+  --bg-main-chat: #40414f; /* Darker chat area */
+  --text-primary: #f9f9f9;
+  --text-secondary: #d1d5db;
+  --text-light: #f3f4f6;
+
+  --user-message-bg: #1e40af; /* Darker blue for dark mode */
+  --ai-message-bg: #4b5563; /* Slightly lighter gray for AI messages */
+  --ai-message-text: var(--text-primary);
+
+  --input-area-bg: var(--bg-main-chat);
+  --input-border: #565869;
+  --input-text: var(--text-primary);
+  --input-placeholder: #7f818e;
+  --button-disabled-bg: #5A5A5A;
+  
+  --border-color: #565869;
+  --border-color-light: #454850;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden; /* Prevent scrolling on body level */
+  font-family: var(--font-primary);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  position: fixed; /* Fix the container in viewport */
+  top: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+/* Sidebar - ChatGPT Style */
+.sidebar {
+  width: 300px;
+  min-width: 300px; /* Ensure sidebar doesn't shrink */
+  flex-shrink: 0;
+  background-color: var(--bg-sidebar);
+  color: var(--sidebar-text);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* Gap between sections */
+  border-right: 1px solid var(--sidebar-border);
+}
+
+.new-chat-button {
+  width: 100%;
+  padding: 10px 12px;
+  background-color: var(--new-chat-button-bg);
+  color: var(--new-chat-button-text);
+  border: 1px solid var(--new-chat-button-border);
+  border-radius: 6px;
+  text-align: left;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.new-chat-button:hover {
+  background-color: var(--new-chat-button-hover-bg);
+}
+
+.sidebar-section h2, .sidebar-section h3 {
+  font-size: 0.85em; /* Smaller headings in sidebar */
+  color: var(--sidebar-text-secondary);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.sidebar input[type="file"] {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  background-color: var(--bg-sidebar); /* Match sidebar bg */
+  color: var(--sidebar-text);
+  border: 1px solid var(--sidebar-text-secondary);
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.sidebar .upload-button {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.sidebar .upload-button:disabled { background-color: var(--button-disabled-bg); color: var(--sidebar-text-secondary); }
+
+.file-list {
+  list-style-type: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;
+}
+.file-list-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 8px;
+  font-size: 0.85em;
+  background-color: var(--bg-app); /* Slightly different bg for file items */
+  border-radius: 4px;
+}
+.file-name { color: var(--sidebar-text); flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;}
+
+.main-content {
+  flex: 1;
+  width: calc(100vw - 300px); /* Fixed width based on viewport minus sidebar */
+  min-width: calc(100vw - 300px); /* Ensure it doesn't shrink */
+  max-width: calc(100vw - 300px); /* Ensure it doesn't grow */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--bg-main-chat);
+}
+
+.welcome-screen {
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.welcome-screen h1 {
+  font-size: 2.5em;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.chat-messages-container {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.message-wrapper {
+  display: flex; /* Used for aligning the inner message */
   width: 100%;
 }
 
-.query-input-bar {
+.user-message-wrapper { justify-content: flex-end; }
+.ai-message-wrapper { justify-content: flex-start; }
+
+.message {
+  max-width: 80%; /* Messages can be wider */
+  display: flex; /* For icon + content layout if icon is added */
+  gap: 10px;
+  align-items: flex-start; /* Align icon with top of message content */
+}
+
+.message-content {
+  padding: 12px 16px;
+  border-radius: 8px; /* Softer radius */
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--ai-message-text); /* Default to AI text color */
+  background-color: var(--ai-message-bg); /* Default to AI bg color */
+}
+
+.user-message .message-content {
+  background-color: var(--user-message-bg);
+  color: var(--user-message-text);
+}
+/* Remove specific border-radius for tail effect for now, for cleaner look */
+
+/* Query Input Area - Bottom of Chat */
+.query-input-area {
+  flex-shrink: 0;
+  padding: 16px 20px; /* Ample padding */
+  padding-bottom: 24px; /* More padding at bottom for visual balance */
+  border-top: 1px solid var(--input-border);
+  background-color: var(--input-area-bg);
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding-bottom: 20px;
-  padding: 10px;
-  width: 100%;
-  justify-content: center;
+  align-items: flex-end; /* Align button with bottom of textarea when it grows */
+  gap: 10px;
+  position: relative; /* For potential disclaimer text later */
 }
 
 .query-textarea {
+  flex-grow: 1;
+  padding: 12px 16px;
+  font-size: 1em;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
   resize: none;
+  background-color: var(--bg-main-chat); /* Or a slightly different input bg */
+  color: var(--input-text);
+  line-height: 1.5;
+  max-height: 200px; /* Max height before scrolling */
+  overflow-y: auto;
+}
+.query-textarea::placeholder { color: var(--input-placeholder); }
+
+.submit-chat-button {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 44px; /* Fixed size for icon button */
+  height: 44px;
+}
+.submit-chat-button:disabled { background-color: var(--button-disabled-bg); cursor: not-allowed; }
+.submit-chat-button:hover:not(:disabled) { background-color: var(--accent-color-hover); }
+.submit-chat-button svg { width: 20px; height: 20px; }
+
+
+/* Toast (already fixed bottom-right) - ensure it uses new variables if needed */
+.toast-notification {
+  background-color: var(--accent-color); /* Using accent color for info/success */
+  /* Consider different colors for error toasts if implemented */
 }
 
-.sumbit-btn {
-  margin-left: 10px;
+/* Ensure old classes not causing conflicts */
+.chat-header-container { display: none; } /* Remove old chat header, welcome screen handles title now */
+.query-input-bar { /* Replaced by query-input-area */ display: none; }
+.sumbit-btn { /* Replaced by submit-chat-button */ display: none; }
+
+/* General Reset & Body Styling */
+html {
+  box-sizing: border-box;
 }
 
-/* Response Section Styling */
-.response-container {
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+:root {
+  /* Light Theme (Default) */
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --text-primary: #212529;
+  --text-secondary: #495057;
+  --text-muted: #6c757d;
+  --border-color: #dee2e6;
+  --border-color-light: #e9ecef;
+  --accent-color: #007bff;
+  --accent-color-hover: #0056b3;
+  --button-disabled-bg: #6c757d;
+  --user-message-bg: var(--accent-color);
+  --user-message-text: white;
+  --ai-message-bg: var(--bg-secondary); /* Or a slightly different gray e.g. #e9ecef */
+  --ai-message-text: var(--text-primary);
+  --chat-header-bg: var(--bg-secondary);
+}
+
+.dark-theme {
+  /* Dark Theme Override */
+  --bg-primary: #1a1a1a; /* Darker overall background */
+  --bg-secondary: #2c2c2c; /* Slightly lighter for cards/sidebar */
+  --text-primary: #e9ecef; /* Light text for readability */
+  --text-secondary: #adb5bd;
+  --text-muted: #868e96;
+  --border-color: #495057; /* Darker borders */
+  --border-color-light: #343a40;
+  --accent-color: #0d6efd; /* Slightly different blue for dark mode if needed */
+  --accent-color-hover: #0a58ca;
+  --button-disabled-bg: #495057;
+  --user-message-bg: var(--accent-color-hover); /* Or a distinct dark mode user color */
+  --user-message-text: white;
+  --ai-message-bg: #3a3a3a; /* Darker gray for AI messages in dark mode */
+  --ai-message-text: var(--text-primary);
+  --chat-header-bg: var(--bg-secondary); /* Can be same as sidebar or slightly different */
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  transition: background-color 0.3s ease, color 0.3s ease; /* Smooth theme transition */
+  overflow-x: hidden; /* Prevent horizontal scrollbars / white bar */
+}
+
+/* App Container: Full viewport, flex layout */
+.app-container {
+  display: flex;
+  min-height: 100vh; /* Use min-height instead of height for flexibility */
+  width: 100%; /* Use 100% instead of 100vw to avoid scrollbar issues */
+}
+
+/* Sidebar Styling (ensure it doesn't cause overflow) */
+.sidebar {
+  width: 300px;
+  flex-shrink: 0; /* Prevent sidebar from shrinking if content overflows */
   padding: 25px;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  overflow-y: auto; /* Enables vertical scrolling if the content overflows */
-  text-align: center;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  /* gap: 20px; Let's manage gap with margins for better control with conditional sections */
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
+
+.sidebar h2, .sidebar h3 {
+  margin-top: 0;
+  font-size: 1.4em;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+  margin-bottom: 15px;
+}
+
+.sidebar h3 {
+  font-size: 1.2em; /* Slightly smaller for subsection */
+  margin-top: 20px; /* Space above the "Uploaded Files" title */
+}
+
+.sidebar input[type="file"] {
+  display: block;
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.sidebar button, .sumbit-btn { /* Combined rule */
+  padding: 10px 15px;
+  font-size: 0.95em;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+  /* margin-bottom: 10px; Add specific margins where needed */
+}
+
+.sidebar button:disabled, .sumbit-btn:disabled {
+  background-color: var(--button-disabled-bg);
+  cursor: not-allowed;
+}
+
+.sidebar button:hover:not(:disabled), .sumbit-btn:hover:not(:disabled) {
+  background-color: var(--accent-color-hover);
+}
+
+.upload-status-message {
+  font-size: 0.9em;
+  color: var(--text-secondary);
+  transition: color 0.3s ease;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  min-height: 1.2em; /* Reserve space to avoid layout jumps */
+}
+
+/* Uploaded Files Section */
+.uploaded-files-section {
+  margin-top: 20px; /* Space above this section */
+  border-top: 1px solid var(--border-color-light);
+  padding-top: 15px;
+}
+
+.file-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.file-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0; /* Vertical padding for each item */
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.file-list-item:last-child {
+  border-bottom: none;
+}
+
+.file-name {
+  font-size: 0.95em;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 10px; /* Space between name and toggle */
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px; /* Width of the toggle */
+  height: 28px; /* Height of the toggle */
+  flex-shrink: 0; /* Prevent toggle from shrinking */
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--text-muted); /* Default background of the slider (off state) */
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px; /* Height of the inner circle */
+  width: 20px; /* Width of the inner circle */
+  left: 4px; /* Position from left */
+  bottom: 4px; /* Position from bottom */
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--accent-color); /* Background when on */
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--accent-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px); /* How much the inner circle moves */
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 28px; /* Fully rounded outer part */
+}
+
+.slider.round:before {
+  border-radius: 50%; /* Fully rounded inner circle */
+}
+
+/* Theme Toggle Container - Now at the top of sidebar */
+.theme-toggle-container {
+  /* Remove fixed positioning styles */
+  /* position: fixed; top: 20px; right: 20px; z-index: 1000; */
+  display: flex; /* To allow alignment of the switch within this container */
+  justify-content: flex-start; /* Align switch to the left */
+  padding-bottom: 10px; /* Some space below the toggle before New Chat button */
+  /* border-bottom: 1px solid var(--sidebar-border); */ /* Optional: separator */
+}
+
+.theme-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 70px;
+  height: 34px;
+  cursor: pointer;
+}
+
+.theme-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--text-muted);
+  border-radius: 34px;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-around; /* Try space-around for better emoji centering */
+  padding: 0 2px; /* Adjusted padding for emojis */
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  width: 28px;
+  height: 28px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  /* Emoji not inside thumb in this design */
+}
+
+.emoji-sun,
+.emoji-moon {
+  font-size: 18px;
+  line-height: 28px; /* Align with thumb height for better vertical centering */
+  transition: opacity 0.3s ease;
+  user-select: none;
+  display: inline-flex; /* Helps with alignment */
+  align-items: center;
+  justify-content: center;
+  flex-basis: 50%; /* Each emoji container takes half the space */
+  text-align: center; /* Center emoji within its half */
+}
+
+/* Light theme specific: Sun emoji prominent, Moon subtle */
+.light-theme .toggle-track {
+  background-color: var(--accent-color);
+}
+.light-theme .emoji-sun { opacity: 1; }
+.light-theme .emoji-moon { opacity: 1; }
+
+/* Dark theme specific: Moon emoji prominent, Sun subtle */
+.dark-theme .toggle-track {
+  background-color: var(--text-secondary);
+}
+.dark-theme .emoji-sun { opacity: 1; }
+.dark-theme .emoji-moon { opacity: 1; }
+
+.theme-toggle-switch input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(36px);
+}
+
+.theme-toggle-switch input:focus-visible + .toggle-track {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* Main Content Area - Now the Chat View */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  /* padding: 30px; Padding will be handled by inner elements or chat-messages-container */
+  padding: 0; /* Remove old padding */
+  overflow: hidden; /* Prevent main-content itself from scrolling */
+  height: 100vh; /* Ensure it takes full viewport height */
+}
+
+/* Chat Header */
+.chat-header-container {
+  padding: 15px 20px;
+  background-color: var(--chat-header-bg);
+  border-bottom: 1px solid var(--border-color);
+  text-align: center; /* Or left, depending on desired title alignment */
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.chat-header-container h1 {
+  font-size: 1.5em; /* Adjusted size for chat header */
+  color: var(--text-primary);
+  margin: 0;
+  transition: color 0.3s ease;
+}
+
+/* Chat Messages Container */
+.chat-messages-container {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto; /* This is where the messages will scroll */
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Space between messages */
+}
+
+/* Individual Message Styling */
+.message {
+  display: flex;
+  max-width: 75%; /* Max width of a message bubble */
+  word-wrap: break-word; /* Break long words */
+}
+
+.message-content {
+  padding: 10px 15px;
+  border-radius: 18px; /* Rounded corners for bubbles */
+  line-height: 1.4;
+  white-space: pre-wrap; /* Preserve newlines from content */
+}
+
+.message-content span br {
+  content: " "; /* Ensure <br/> creates a newline */
+  display: block; /* Make <br/> take up space */
+  margin-bottom: 0.1em; /* Small space after explicit newlines if needed */
+}
+
+
+/* User Message Styling */
+.user-message {
+  align-self: flex-end; /* Align to the right */
+  margin-left: auto; /* Push to the right */
+}
+
+.user-message .message-content {
+  background-color: var(--user-message-bg);
+  color: var(--user-message-text);
+  border-bottom-right-radius: 5px; /* WhatsApp-like tail effect */
+}
+
+/* AI Message Styling */
+.ai-message {
+  align-self: flex-start; /* Align to the left */
+  margin-right: auto; /* Push to the left */
+}
+
+.ai-message .message-content {
+  background-color: var(--ai-message-bg);
+  color: var(--ai-message-text);
+  border: 1px solid var(--border-color-light);
+  border-bottom-left-radius: 5px; /* WhatsApp-like tail effect */
+}
+
+
+/* Query Input Bar - Fixed at Bottom */
+.query-input-bar {
+  display: flex;
+  align-items: center; /* Align items vertically */
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-primary); /* Match body or sidebar bg */
+  gap: 10px;
+  flex-shrink: 0; /* Prevent input bar from shrinking */
+}
+
+.query-textarea {
+  flex-grow: 1;
+  padding: 10px 12px;
+  font-size: 1em;
+  border: 1px solid var(--border-color);
+  border-radius: 20px; /* More rounded for chat input */
+  resize: none;
+  min-height: auto; /* Let rows attribute handle initial height */
+  max-height: 150px; /* Limit expansion */
+  overflow-y: auto; /* Scroll within textarea if content exceeds max-height */
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  line-height: 1.4;
+}
+
+.sumbit-btn { /* Submit button styling */
+  padding: 10px 18px;
+  font-size: 0.95em;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 20px; /* Rounded to match textarea */
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+  height: auto; /* Adjust height to content */
+  align-self: flex-end; /* Align with bottom of textarea if textarea grows */
+  margin-bottom: 2px; /* Small adjustment if needed */
+}
+
+/* Response Container Styling */
+.response-container {
+  flex-grow: 1;
+  padding: 20px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color-light);
+  border-radius: 5px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 0.95em;
+  color: var(--text-primary);
+  margin-top: 20px;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Removing old .main-div as it should not be needed anymore */
+.main-div {
+  display: none;
+}
+
+/* Toast Notification Styles */
+.toast-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: var(--accent-color); /* Use accent color for visibility */
+  color: white; /* Text color on accent background */
+  padding: 12px 20px;
+  border-radius: 5px;
+  z-index: 1000; /* Ensure it's on top of other elements */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+  font-size: 0.95em;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+  transform: translateY(0);
+}
+
+.toast-notification.hide {
+  opacity: 0;
+  transform: translateY(20px); /* Optional: slide out effect */
+}
+
+/* Dark theme adjustments for toast if needed, but accent color should generally work */
+/* .dark-theme .toast-notification { ... } */

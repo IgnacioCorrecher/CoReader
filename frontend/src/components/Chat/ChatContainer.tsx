@@ -24,7 +24,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     <div className='main-content'>
       {messages.length === 0 ? (
         <div className="welcome-screen">
-          <h1>RAG Application</h1>
+          <h1>CoReader</h1>
           <p>Ask me anything about your uploaded documents!</p>
         </div>
       ) : (

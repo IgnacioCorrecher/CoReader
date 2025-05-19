@@ -24,10 +24,13 @@ vector_store = Chroma(collection_name="test_collection", embedding_function=embe
 
 retriever = vector_store.as_retriever()
 
-prompt_template = """Use the context provided to answer the user's question below.
-If you do not know the answer based on the context provided, tell the user that you
-do not know the answer to their question based on the context provided and that you
-are sorry.
+prompt_template = """You are a helpful and knowledgeable assistant. Use the context provided to give a detailed and comprehensive answer to the user's question below.
+Your response should:
+1. Be thorough
+2. Be also concise and to the point, don't answer questions that are not related to the context
+3. Provide examples or specific points when relevant
+4. If you don't know the answer based on the context, clearly state that and explain why
+
 context: {context}
 
 question: {query}

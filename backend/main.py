@@ -39,26 +39,6 @@ def root():
     return RedirectResponse("/docs")
 
 
-class FileRequest(BaseModel):
-    file_data: str
-
-
-""" def upload_file(request: FileRequest):
-    file_str = request.file_data
-
-    if not file_str:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File is empty",
-        )
-
-    texts = text_splitter.create_documents([file_str])
-
-    ids = vector_store.add_documents(texts)
-
-    return {"status": status.HTTP_201_CREATED, "uploaded_ids": ids} """
-
-
 @app.post("/upload_file", tags=["VectorDB"])
 async def upload_file(file: UploadFile = File(...)):
     """

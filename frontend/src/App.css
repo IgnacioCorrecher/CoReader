@@ -111,9 +111,30 @@ body {
   border-right: 1px solid var(--sidebar-border);
 }
 
-.new-chat-button {
+.theme-toggle-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   width: 100%;
-  padding: 10px 12px;
+  gap: 10px;
+  padding-bottom: 0;
+}
+
+.theme-toggle-container > * {
+  height: 34px !important; /* Force same height for all direct children */
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.theme-toggle-switch {
+  position: relative;
+  width: 70px;
+  cursor: pointer;
+}
+
+.new-chat-button {
+  width: fit-content;
+  padding: 0 12px;
   background-color: var(--new-chat-button-bg);
   color: var(--new-chat-button-text);
   border: 1px solid var(--new-chat-button-border);
@@ -122,7 +143,9 @@ body {
   font-size: 0.9em;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  justify-content: center;
 }
+
 .new-chat-button:hover {
   background-color: var(--new-chat-button-hover-bg);
 }
@@ -524,17 +547,18 @@ input:checked + .slider:before {
 
 /* Theme Toggle Container - Now at the top of sidebar */
 .theme-toggle-container {
-  /* Remove fixed positioning styles */
-  /* position: fixed; top: 20px; right: 20px; z-index: 1000; */
-  display: flex; /* To allow alignment of the switch within this container */
-  justify-content: flex-start; /* Align switch to the left */
-  padding-bottom: 10px; /* Some space below the toggle before New Chat button */
-  /* border-bottom: 1px solid var(--sidebar-border); */ /* Optional: separator */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding-bottom: 0;
 }
 
 .theme-toggle-switch {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   width: 70px;
   height: 34px;
   cursor: pointer;
@@ -758,7 +782,7 @@ input:checked + .slider:before {
 /* Toast Notification Styles */
 .toast-notification {
   position: fixed;
-  bottom: 20px;
+  top: 20px;
   right: 20px;
   background-color: var(--accent-color); /* Use accent color for visibility */
   color: white; /* Text color on accent background */
@@ -779,3 +803,22 @@ input:checked + .slider:before {
 
 /* Dark theme adjustments for toast if needed, but accent color should generally work */
 /* .dark-theme .toast-notification { ... } */
+
+/* Clear button styling */
+.clear-button {
+  justify-content: center;
+  padding: 0 16px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: fit-content;
+  min-width: min-content;
+  font-size: 1em;
+}
+
+.clear-button:hover {
+  background-color: var(--accent-color-hover);
+}

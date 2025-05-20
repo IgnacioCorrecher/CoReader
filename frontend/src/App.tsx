@@ -36,57 +36,48 @@ function App() {
     setQuery(event.target.value);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
-    }
-  };
+      const file = event.target.files[0];
+      setSelectedFile(file);
+      
+      const formData = new FormData();
+      formData.append('file', file);
 
-  const handleFileUpload = async () => {
-    if (!selectedFile) {
-      setToastMessage('Please select a file first.');
-      setIsToastVisible(true);
-      return;
-    }
+      setIsStreamingUpload(true);
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+      try {
+        const res = await fetch('http://localhost:8000/upload_file', {
+          method: 'POST',
+          body: formData,
+        });
 
-    setIsStreamingUpload(true);
+        if (res.ok) {
+          await res.json();
+          setToastMessage("✅ File uploaded successfully!");
+          setIsToastVisible(true);
 
-    try {
-      const res = await fetch('http://localhost:8000/upload_file', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (res.ok) {
-        await res.json();
-        setToastMessage("File uploaded successfully!");
-        setIsToastVisible(true);
-
-        if (selectedFile) {
           const newFile: UploadedFile = {
-            id: selectedFile.name,
-            name: selectedFile.name,
+            id: file.name,
+            name: file.name,
             isActive: true,
           };
           if (!uploadedFiles.find(f => f.name === newFile.name)) {
             setUploadedFiles(prevFiles => [...prevFiles, newFile]);
           }
+        } else {
+          const errorResult = await res.json();
+          setToastMessage(`Upload failed: ${errorResult.detail || res.statusText}`);
+          setIsToastVisible(true);
         }
-        setSelectedFile(null);
-      } else {
-        const errorResult = await res.json();
-        setToastMessage(`Upload failed: ${errorResult.detail || res.statusText}`);
+      } catch (error) {
+        console.error('File upload error:', error);
+        setToastMessage('Upload failed. See console for details.');
         setIsToastVisible(true);
+      } finally {
+        setIsStreamingUpload(false);
+        setSelectedFile(null);
       }
-    } catch (error) {
-      console.error('File upload error:', error);
-      setToastMessage('Upload failed. See console for details.');
-      setIsToastVisible(true);
-    } finally {
-      setIsStreamingUpload(false);
     }
   };
 
@@ -100,6 +91,8 @@ function App() {
 
   const handleNewChat = () => {
     setChatMessages([]);
+    setToastMessage('⚠️ Chat cleared.');
+    setIsToastVisible(true);
   };
 
   const handleQuerySubmit = () => {
@@ -177,11 +170,7 @@ function App() {
     <ThemeProvider>
       <div className="app-container">
         <Sidebar
-          selectedFile={selectedFile}
-          isStreaming={isStreamingUpload}
           uploadedFiles={uploadedFiles}
-          onFileChange={handleFileChange}
-          onUpload={handleFileUpload}
           onToggleActive={toggleFileActiveStatus}
           onNewChat={handleNewChat}
         />
@@ -192,6 +181,8 @@ function App() {
           isStreaming={isStreaming}
           onQueryChange={handleQueryChange}
           onSubmit={handleQuerySubmit}
+          onFileChange={handleFileChange}
+          isUploadingFile={isStreamingUpload}
         />
 
         <Toast message={toastMessage} isVisible={isToastVisible} />

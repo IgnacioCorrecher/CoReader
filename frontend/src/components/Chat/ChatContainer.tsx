@@ -9,6 +9,8 @@ interface ChatContainerProps {
   isStreaming: boolean;
   onQueryChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSubmit: () => void;
+  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  isUploadingFile: boolean;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -16,7 +18,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   query,
   isStreaming,
   onQueryChange,
-  onSubmit
+  onSubmit,
+  onFileChange,
+  isUploadingFile
 }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -41,6 +45,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         isStreaming={isStreaming}
         onQueryChange={onQueryChange}
         onSubmit={onSubmit}
+        onFileChange={onFileChange}
+        isUploadingFile={isUploadingFile}
       />
     </div>
   );

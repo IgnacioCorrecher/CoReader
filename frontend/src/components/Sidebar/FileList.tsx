@@ -1,4 +1,27 @@
 import type { UploadedFile } from '../../types';
+import { useTheme } from '../../context/ThemeContext';
+
+const FileIcon = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <svg 
+      width="16" 
+      height="16" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke={isDark ? 'white' : 'black'} 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+      style={{ marginRight: '8px', flexShrink: 0 }}
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
+};
 
 interface FileListProps {
   files: UploadedFile[];
@@ -10,11 +33,14 @@ const FileList: React.FC<FileListProps> = ({ files, onToggleActive }) => {
 
   return (
     <div className="sidebar-section uploaded-files-display-section">
-      <h3>Active Files</h3>
+      <h3>Uploaded Files</h3>
       <ul className="file-list">
         {files.map((file) => (
           <li key={file.id} className="file-list-item">
-            <span className="file-name">{file.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+              <FileIcon />
+              <span className="file-name">{file.name}</span>
+            </div>
             <label className="toggle-switch">
               <input
                 type="checkbox"

@@ -15,6 +15,7 @@ function App() {
   const [isStreamingUpload, setIsStreamingUpload] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
   const [isToastVisible, setIsToastVisible] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +96,10 @@ function App() {
     setIsToastVisible(true);
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   const handleQuerySubmit = () => {
     if (!query.trim()) return;
 
@@ -168,11 +173,12 @@ function App() {
 
   return (
     <ThemeProvider>
-      <div className="app-container">
+      <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <Sidebar
           uploadedFiles={uploadedFiles}
           onToggleActive={toggleFileActiveStatus}
           onNewChat={handleNewChat}
+          isOpen={isSidebarOpen}
         />
         
         <ChatContainer
@@ -183,6 +189,8 @@ function App() {
           onSubmit={handleQuerySubmit}
           onFileChange={handleFileChange}
           isUploadingFile={isStreamingUpload}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={toggleSidebar}
         />
 
         <Toast message={toastMessage} isVisible={isToastVisible} />

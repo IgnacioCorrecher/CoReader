@@ -3,6 +3,20 @@ import type { ChatMessage as ChatMessageType } from '../../types';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 
+const HamburgerIcon = ({ color = 'currentColor' }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+);
+
+const ChevronLeftIcon = ({ color = 'currentColor' }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"></polyline>
+  </svg>
+);
+
 interface ChatContainerProps {
   messages: ChatMessageType[];
   query: string;
@@ -11,6 +25,8 @@ interface ChatContainerProps {
   onSubmit: () => void;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   isUploadingFile: boolean;
+  isSidebarOpen: boolean;
+  onToggleSidebar: () => void;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -20,12 +36,21 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   onQueryChange,
   onSubmit,
   onFileChange,
-  isUploadingFile
+  isUploadingFile,
+  isSidebarOpen,
+  onToggleSidebar
 }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className='main-content'>
+    <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+      <button 
+        onClick={onToggleSidebar} 
+        className="sidebar-toggle-button"
+        title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+      >
+        {isSidebarOpen ? <ChevronLeftIcon /> : <HamburgerIcon />}
+      </button>
       {messages.length === 0 ? (
         <div className="welcome-screen">
           <h1>CoReader</h1>

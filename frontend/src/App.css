@@ -18,7 +18,7 @@ html {
   --bg-sidebar: #202123; /* Dark sidebar */
   --sidebar-text: #ececf1;
   --sidebar-text-secondary: #c5c5d2;
-  --sidebar-border: #353740;
+  --sidebar-border: #403538;
   --new-chat-button-bg: transparent;
   --new-chat-button-text: var(--sidebar-text);
   --new-chat-button-border: var(--sidebar-text-secondary);
@@ -109,6 +109,21 @@ body {
   flex-direction: column;
   gap: 16px; /* Gap between sections */
   border-right: 1px solid var(--sidebar-border);
+  transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  overflow-x: hidden; /* Prevent content from showing during transition */
+}
+
+.sidebar.closed {
+  width: 0;
+  min-width: 0;
+  padding: 12px 0;
+  opacity: 0;
+  border-right: none;
+  pointer-events: none; /* Prevent interaction when closed */
+}
+
+.sidebar.closed > * {
+  visibility: hidden; /* Hide children when closed to prevent them from taking space or being focusable */
 }
 
 .theme-toggle-container {
@@ -118,6 +133,7 @@ body {
   width: 100%;
   gap: 10px;
   padding-bottom: 0;
+  margin-top: 0px;
 }
 
 .theme-toggle-container > * {
@@ -181,28 +197,66 @@ body {
 }
 .sidebar .upload-button:disabled { background-color: var(--button-disabled-bg); color: var(--sidebar-text-secondary); }
 
+.uploaded-files-header {
+  border-bottom: 1px solid var(--sidebar-text-secondary);
+  padding-bottom: 8px; /* Optional: adds some space between text and border */
+  margin-bottom: 12px; /* Optional: adds some space below the header */
+}
+
+.empty-file-list-message {
+  color: var(--sidebar-text-secondary);
+  font-style: italic;
+  font-size: 0.9em;
+  text-align: center;
+  padding: 10px 0;
+}
+
 .file-list {
   list-style-type: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;
 }
 .file-list-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 6px 8px;
-  font-size: 0.85em;
-  background-color: var(--bg-app); /* Slightly different bg for file items */
-  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px; /* Increased padding */
+  font-size: 0.9em; /* Slightly larger font for better readability */
+  background-color: transparent; /* Make it blend with sidebar, hover will differentiate */
+  border-radius: 6px; /* Slightly more rounded corners */
+  transition: background-color 0.2s ease-in-out; /* Smooth hover transition */
+  border: 1px solid transparent; /* Prepare for potential border on hover/active */
 }
-.file-name { color: var(--sidebar-text); flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;}
+
+.file-name {
+  color: var(--sidebar-text);
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 10px; /* Increased spacing from toggle */
+  font-weight: 500; /* Slightly bolder for emphasis */
+}
 
 .main-content {
   flex: 1;
-  width: calc(100vw - 300px); /* Fixed width based on viewport minus sidebar */
-  min-width: calc(100vw - 300px); /* Ensure it doesn't shrink */
-  max-width: calc(100vw - 300px); /* Ensure it doesn't grow */
+  /* width is dynamically calculated based on sidebar visibility in app-container logic */
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
   background-color: var(--bg-main-chat);
+  transition: width 0.3s ease, margin-left 0.3s ease;
+}
+
+.app-container.sidebar-closed .main-content {
+  width: 100vw;
+  min-width: 100vw;
+  max-width: 100vw;
+}
+
+.app-container.sidebar-open .main-content {
+  width: calc(100vw - 300px);
+  min-width: calc(100vw - 300px);
+  max-width: calc(100vw - 300px);
 }
 
 .welcome-screen {
@@ -397,6 +451,7 @@ body {
   flex-direction: column;
   /* gap: 20px; Let's manage gap with margins for better control with conditional sections */
   transition: background-color 0.3s ease, border-color 0.3s ease;
+  margin-top: -11px;
 }
 
 .sidebar h2, .sidebar h3 {
@@ -821,4 +876,26 @@ input:checked + .slider:before {
 
 .clear-button:hover {
   background-color: var(--accent-color-hover);
+}
+
+.sidebar-toggle-button {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100; /* Ensure it's above chat content */
+  background: var(--bg-main-chat);
+  border: 1px solid var(--input-border);
+  border-radius: 50%;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  color: var(--text-primary);
+}
+
+.sidebar-toggle-button:hover {
+  background: var(--accent-color-hover);
+  color: white;
 }

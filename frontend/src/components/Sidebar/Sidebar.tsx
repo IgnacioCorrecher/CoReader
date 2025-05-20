@@ -7,18 +7,20 @@ interface SidebarProps {
   uploadedFiles: UploadedFile[];
   onToggleActive: (fileId: string) => void;
   onNewChat: () => void;
+  isOpen: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   uploadedFiles,
   onToggleActive,
-  onNewChat
+  onNewChat,
+  isOpen
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
   return (
-    <div className='sidebar'>
+    <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="theme-toggle-container">
         <ThemeToggle />
         <button 
@@ -26,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           style={{
             backgroundColor: 'transparent',
             color: isDark ? '#E5E5E5' : '#2D2D2D',
-            border: `1px solid ${isDark ? '#E5E5E5' : '#2D2D2D'}`,
+            border: `1px solid ${isDark ? '#E5E5E580' : '#2D2D2D80'}`,
             borderRadius: '8px',
             padding: '8px 16px',
             cursor: 'pointer',
@@ -38,16 +40,17 @@ const Sidebar: React.FC<SidebarProps> = ({
           }}
           onMouseEnter={(e) => {
             const bgColor = isDark ? '#E5E5E5' : '#2D2D2D';
-            e.currentTarget.style.backgroundColor = `${bgColor}20`;
-            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.backgroundColor = `${bgColor}20`; // 12.5% opacity
+            e.currentTarget.style.transform = 'scale(1.025)';
             e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
-            e.currentTarget.style.borderColor = isDark ? '#E5E5E5' : '#2D2D2D';
+            e.currentTarget.style.borderColor = isDark ? '#E5E5E580' : '#2D2D2D80';
+            
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
             e.currentTarget.style.transform = 'scale(1)';
             e.currentTarget.style.boxShadow = 'none';
-            e.currentTarget.style.borderColor = isDark ? '#E5E5E5' : '#2D2D2D';
+            e.currentTarget.style.borderColor = isDark ? '#E5E5E580' : '#2D2D2D80';
           }}
         >
           🔄 Clear Chat

@@ -100,6 +100,13 @@ function App() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handleDeleteFile = (fileId: string) => {
+    setUploadedFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+    setToastMessage("🗑️ File deleted successfully!");
+    setIsToastVisible(true);
+    // TODO: Add backend call to delete file from server if needed
+  };
+
   const handleQuerySubmit = () => {
     if (!query.trim()) return;
 
@@ -179,6 +186,7 @@ function App() {
           onToggleActive={toggleFileActiveStatus}
           onNewChat={handleNewChat}
           isOpen={isSidebarOpen}
+          onDeleteFile={handleDeleteFile}
         />
         
         <ChatContainer

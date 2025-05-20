@@ -8,13 +8,15 @@ interface SidebarProps {
   onToggleActive: (fileId: string) => void;
   onNewChat: () => void;
   isOpen: boolean;
+  onDeleteFile: (fileId: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   uploadedFiles,
   onToggleActive,
   onNewChat,
-  isOpen
+  isOpen,
+  onDeleteFile
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -60,6 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <FileList
         files={uploadedFiles}
         onToggleActive={onToggleActive}
+        onDeleteFile={onDeleteFile}
       />
     </div>
   );

@@ -233,7 +233,35 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   padding-right: 10px; /* Increased spacing from toggle */
+  padding-left: 5px;
   font-weight: 500; /* Slightly bolder for emphasis */
+
+}
+
+.delete-file-button {
+  background: red;
+  border: none;
+  padding: 0; /* Reset padding */
+  margin: 0; /* Reset margin */
+  margin-right: 0px; /* Same as FileIcon for alignment */
+  cursor: pointer;
+  display: flex; /* To center icon if needed */
+  align-items: center;
+  justify-content: center;
+  width: 5px; /* Match FileIcon size */
+  height: 5px; /* Match FileIcon size */
+}
+
+/* disable default blue hover/focus highlight on delete icon */
+.delete-file-button:hover,
+.delete-file-button:focus,
+.delete-file-button:focus-visible {
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: scale(1.25);
+  margin-right: 0px;
+  
 }
 
 .main-content {
@@ -742,7 +770,7 @@ input:checked + .slider:before {
 
 .message-content span br {
   content: " "; /* Ensure <br/> creates a newline */
-  display: block; /* Make <br/> take up space */
+  display: block; /* º<br/> take up space */
   margin-bottom: 0.1em; /* Small space after explicit newlines if needed */
 }
 

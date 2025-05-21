@@ -31,6 +31,10 @@ Your response should:
 3. Provide examples or specific points when relevant
 4. If you don't know the answer based on the context, clearly state that and explain why
 5. The response should be in the same language as the question.
+6. The final answer should be in markdown format, use bold, italic.
+7. Don't abuse the use of markdown formatting, use it when it makes sense.
+8. Never start your answer with "Here is the answer to your question:" or "Based on the provided context, here's the answer to your question:" or "Based on the provided context" or anything similar, just start with the answer.
+9. Never reference the speaker, instead use the name of the person that is being talked about.
 
 Chat History:
 {chat_history}

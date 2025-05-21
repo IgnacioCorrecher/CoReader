@@ -342,7 +342,32 @@ body {
   background-color: var(--user-message-bg);
   color: var(--user-message-text);
 }
-/* Remove specific border-radius for tail effect for now, for cleaner look */
+
+/* Styles for Markdown-generated content within messages */
+.message-content p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.message-content ul,
+.message-content ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 25px; /* Indent lists a bit */
+}
+
+.message-content li {
+  margin-bottom: 0.25em;
+}
+
+/* Remove extra margins for first/last block elements in a message for a cleaner look */
+.message-content > :first-child {
+  margin-top: 0;
+}
+
+.message-content > :last-child {
+  margin-bottom: 0;
+}
 
 /* Query Input Area - Bottom of Chat */
 .query-input-area {

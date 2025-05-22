@@ -35,9 +35,7 @@ Your response should:
 7. Don't abuse the use of markdown formatting, use it when it makes sense.
 8. Never start your answer with "Here is the answer to your question:" or "Based on the provided context, here's the answer to your question:" or "Based on the provided context" or anything similar, just start with the answer.
 9. Never reference the speaker, instead use the name of the person that is being talked about.
-
-Chat History:
-{chat_history}
+10. If the context is in a different language than the question, translate the context to the language of the question.
 
 Current context for the question:
 {context}
@@ -150,13 +148,12 @@ class RAGChain:
 
         # Prepare inputs for the prompt
         prompt_inputs = {
-            "chat_history": history_str,
             "context": context,
             "query": query,
         }
         final_prompt_str = self.prompt.format(**prompt_inputs)
 
-        print(final_prompt_str)
+        # print(final_prompt_str)
 
         response_parts = []
 

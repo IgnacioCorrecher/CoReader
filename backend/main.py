@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from RAGChain import vector_store, text_splitter, rag_chain
 import logging
 import asyncio
+from DocProcessing import DocProcessing
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -46,21 +47,8 @@ async def upload_file(file: UploadFile = File(...)):
     """
     # Read file bytes
     content_bytes = await file.read()
-    # Decode to string (adjust encoding if needed)
-    try:
-        file_str = content_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Could not decode file contents as UTF-8",
-        )
-
-    # Validate non-empty content
-    if not file_str or file_str.strip() == "":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File is empty or contains only whitespace",
-        )
+    doc_processor = DocProcessing(file.filename, content_bytes)
+    file_str = doc_processor.process_doc()
 
     # Split text into chunks/documents
     texts = text_splitter.create_documents([file_str])

@@ -27,6 +27,7 @@ interface ChatContainerProps {
   isUploadingFile: boolean;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  isAnyFileActive: boolean;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -38,7 +39,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   onFileChange,
   isUploadingFile,
   isSidebarOpen,
-  onToggleSidebar
+  onToggleSidebar,
+  isAnyFileActive
 }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +74,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         onSubmit={onSubmit}
         onFileChange={onFileChange}
         isUploadingFile={isUploadingFile}
+        isAnyFileActive={isAnyFileActive}
       />
     </div>
   );

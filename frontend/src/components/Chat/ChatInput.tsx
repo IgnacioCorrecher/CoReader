@@ -8,6 +8,7 @@ interface ChatInputProps {
   onSubmit: () => void;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   isUploadingFile: boolean;
+  isAnyFileActive: boolean;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -16,7 +17,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onQueryChange,
   onSubmit,
   onFileChange,
-  isUploadingFile
+  isUploadingFile,
+  isAnyFileActive
 }) => {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     onFileChange(event);
@@ -75,7 +77,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         onChange={onQueryChange}
         placeholder="Send a message..."
         rows={1}
-        disabled={isStreaming}
+        disabled={isStreaming || !isAnyFileActive}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -86,7 +88,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <button
         className='submit-chat-button'
         onClick={onSubmit}
-        disabled={isStreaming || !query.trim()}
+        disabled={isStreaming || !query.trim() || !isAnyFileActive}
         style={{
           cursor: 'pointer',
           display: 'flex',

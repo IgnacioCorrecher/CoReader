@@ -106,6 +106,8 @@ function App() {
     setIsToastVisible(true);
   };
 
+  const isAnyFileActive = uploadedFiles.some(file => file.isActive);
+
   const handleQuerySubmit = () => {
     if (!query.trim()) return;
 
@@ -115,6 +117,18 @@ function App() {
       content: query,
     };
     setChatMessages(prevMessages => [...prevMessages, userMessage]);
+
+    if (!isAnyFileActive) {
+      const aiResponse: ChatMessage = {
+        id: 'ai-' + Date.now(),
+        type: 'ai',
+        content: "Please upload a file so I can answer.",
+      };
+      setChatMessages(prevMessages => [...prevMessages, aiResponse]);
+      setQuery('');
+      setIsStreaming(false); // Ensure streaming is off
+      return;
+    }
 
     const websocket = new WebSocket('ws://localhost:8000/ws/stream');
     setIsStreaming(true);
@@ -198,6 +212,7 @@ function App() {
           isUploadingFile={isStreamingUpload}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={toggleSidebar}
+          isAnyFileActive={isAnyFileActive}
         />
 
         <Toast message={toastMessage} isVisible={isToastVisible} />

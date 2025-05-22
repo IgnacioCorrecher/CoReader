@@ -17,7 +17,7 @@ class DocProcessing:
                 file_str = self.file_content.decode("utf-8")
             except UnicodeDecodeError:
                 raise HTTPException(
-                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Could not decode file contents as UTF-8",
                 )
         elif self.file_path.endswith(".pdf"):
@@ -37,4 +37,12 @@ class DocProcessing:
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail="Unsupported file type",
             )
-        return self.text_formatter(file_str)
+        final_file_str = self.text_formatter(file_str)
+
+        if len(final_file_str) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File is empty",
+            )
+
+        return final_file_str

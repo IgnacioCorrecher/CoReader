@@ -8,7 +8,6 @@ from langchain.memory import ConversationBufferWindowMemory
 
 # Load env variables (GOOGLE API KEY)
 load_dotenv()
-
 # Instance the llm chat
 llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite")
 
@@ -33,7 +32,7 @@ Your response should:
 5. The response should be in the same language as the question.
 6. The final answer should be in markdown format, use bold, italic.
 7. Don't abuse the use of markdown formatting, use it when it makes sense.
-8. Never start your answer with "Here is the answer to your question:" or "Based on the provided context, here's the answer to your question:" or "Based on the provided context" or anything similar, just start with the answer.
+8. Never start your answer with "Here is the answer to your question:" or "Based on the provided context, here's the answer to your question:" or "Based on the provided context" or anything similar in different languages, just start with the answer.
 9. Never reference the speaker, instead use the name of the person that is being talked about.
 10. If the context is in a different language than the question, translate the context to the language of the question.
 
@@ -109,65 +108,86 @@ class RAGChain:
             k=memory_window_k,
         )
 
-    def stream(self, query: str):
-        # Load chat history
-        loaded_memory_vars = self.chat_memory.load_memory_variables({})
-        history_str = loaded_memory_vars.get("chat_history", "")
+    def get_retrieved_documents(self, query: str, history_str: str = ""):
+        print(f"RAGChain - Input User Query: '{query}'")
 
-        # Rewrite query for retrieval, now history-aware
-        retrieval_query = self.utils.query_rewrite(query, history_str)
+        retrieval_query_result = self.utils.query_rewrite(query, history_str)
+        retrieval_query_content = getattr(
+            retrieval_query_result, "content", str(retrieval_query_result)
+        )
 
-        # Measure difficulty
         difficulty_score_result = self.utils.measure_difficulty(query)
         difficulty_score_str = getattr(
             difficulty_score_result, "content", str(difficulty_score_result)
         ).strip()
+        print(f"RAGChain - Measured Difficulty (raw): '{difficulty_score_str}'")
 
         num_docs_to_retrieve = 3  # Default k
-
         try:
             difficulty = int(difficulty_score_str)
             if 1 <= difficulty <= 10:
                 num_docs_to_retrieve = difficulty
             else:
                 print(
-                    f"Warning: Difficulty score {difficulty} out of expected range 1-10. Using default k={num_docs_to_retrieve}"
+                    f"RAGChain - Difficulty score {difficulty} out of range (1-10). Defaulting to k={num_docs_to_retrieve}"
                 )
         except ValueError:
             print(
-                f"Warning: Could not parse difficulty score '{difficulty_score_str}' as an integer. Using default k={num_docs_to_retrieve}"
+                f"RAGChain - Could not parse difficulty '{difficulty_score_str}'. Defaulting to k={num_docs_to_retrieve}"
             )
+        num_docs_to_retrieve = max(num_docs_to_retrieve, 3)
 
-        print(f"Dynamic k for retrieval: {num_docs_to_retrieve}")
+        print(f"RAGChain - Number of docs to retrieve (k): {num_docs_to_retrieve}")
+
+        print(f"RAGChain - Query rewrite: {retrieval_query_content}")
 
         docs = self.retriever.invoke(
-            retrieval_query.content,
+            retrieval_query_content,
             config={"configurable": {"search_kwargs": {"k": num_docs_to_retrieve}}},
         )
+        return docs
+
+    def _prepare_rag_inputs(self, query: str):
+        loaded_memory_vars = self.chat_memory.load_memory_variables({})
+        history_str = loaded_memory_vars.get("chat_history", "")
+
+        docs = self.get_retrieved_documents(query, history_str)
+
         context = self.utils.format_docs(docs)
 
-        # Prepare inputs for the prompt
         prompt_inputs = {
             "context": context,
             "query": query,
         }
         final_prompt_str = self.prompt.format(**prompt_inputs)
 
-        # print(final_prompt_str)
+        return final_prompt_str, query
 
-        response_parts = []
+    def process_query(self, query: str, stream_response: bool = True):
+        final_prompt_str, original_query = self._prepare_rag_inputs(query)
 
-        # Stream each generated token in real time and append token to answer for history
-        for token in self.llm.stream(final_prompt_str):
-            response_parts.append(token.content)
-            yield token
+        if stream_response:
+            response_parts = []
+            for token in self.llm.stream(final_prompt_str):
+                response_parts.append(token.content)
+                yield token
 
-        full_response_content = "".join(response_parts)
+            full_response_content = "".join(response_parts)
+            self.chat_memory.save_context(
+                {"question": original_query}, {"answer": full_response_content}
+            )
+            print(f"RAGChain - LLM Answer (streamed): '{full_response_content}'")
+        else:
+            full_response = self.llm.invoke(final_prompt_str)
+            full_response_content = getattr(
+                full_response, "content", str(full_response)
+            )
 
-        # Save the full interaction to memory after streaming is complete
-        self.chat_memory.save_context(
-            {"question": query}, {"answer": full_response_content}
-        )
+            self.chat_memory.save_context(
+                {"question": original_query}, {"answer": full_response_content}
+            )
+            print(f"RAGChain - LLM Answer (invoked): '{full_response_content}'")
+            return full_response_content
 
 
 rag_chain = RAGChain(llm, retriever, custom_rag_prompt)

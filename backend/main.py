@@ -47,6 +47,8 @@ async def upload_file(file: UploadFile = File(...)):
     """
     # Read file bytes
     content_bytes = await file.read()
+
+    # Process file
     doc_processor = DocProcessing(file.filename, content_bytes)
     file_str = doc_processor.process_doc()
 
@@ -61,16 +63,17 @@ async def upload_file(file: UploadFile = File(...)):
 
 class SearchRequest(BaseModel):
     search_str: str  # String to search
-    n: int = 2  # Number of similarity chunks to return
+    n: int = 3  # Number of similarity chunks to return
 
 
 @app.post("/vector_search", tags=["VectorDB"])
 def similarity_search(request: SearchRequest):
     try:
-        results = vector_store.similarity_search(request.search_str, k=request.n)
+        docs = rag_chain.get_retrieved_documents(query=request.search_str)
 
-        return {"status": status.HTTP_200_OK, "results": results}
+        return {"status": status.HTTP_200_OK, "results": docs}
     except Exception as e:
+        logger.error(f"Error in /vector_search: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error in request: {str(e)}",
@@ -93,7 +96,7 @@ async def rag_chain_invoke(request: RAGRequest):
         )
 
     # Query the RAG Chain
-    response = rag_chain.invoke(query)
+    response = rag_chain.process_query(query=query, stream_response=False)
 
     # Return Success
     return {"status": status.HTTP_200_OK, "response": response}
@@ -117,7 +120,7 @@ async def chat(websocket: WebSocket):
             query = data["query"]
 
             # Generate response in real time
-            for token in rag_chain.stream(query):
+            for token in rag_chain.process_query(query=query, stream_response=True):
                 await websocket.send_text(token.content)
                 await asyncio.sleep(0)
                 response += token.content

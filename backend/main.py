@@ -5,7 +5,10 @@ from pydantic import BaseModel
 from RAGChain import vector_store, text_splitter, rag_chain
 import logging
 import asyncio
+import uuid
 from DocProcessing import DocProcessing
+from langchain_core.documents import Document
+
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -43,7 +46,7 @@ def root():
 @app.post("/upload_file", tags=["VectorDB"])
 async def upload_file(file: UploadFile = File(...)):
     """
-    Upload a single file and save it to the 'uploads' directory.
+    Upload a single file and save it to the vector store with metadata.
     """
     # Read file bytes
     content_bytes = await file.read()
@@ -52,13 +55,159 @@ async def upload_file(file: UploadFile = File(...)):
     doc_processor = DocProcessing(file.filename, content_bytes)
     file_str = doc_processor.process_doc()
 
+    # Generate unique file ID
+    file_id = str(uuid.uuid4())
+
     # Split text into chunks/documents
     texts = text_splitter.create_documents([file_str])
+
+    # Add metadata to each document chunk
+    for doc in texts:
+        doc.metadata = {
+            "file_id": file_id,
+            "filename": file.filename,
+            "is_active": True,  # Files are active by default
+        }
 
     # Add to vector store and get generated IDs
     ids = vector_store.add_documents(texts)
 
-    return {"status": status.HTTP_201_CREATED, "uploaded_ids": ids}
+    return {
+        "status": status.HTTP_201_CREATED,
+        "uploaded_ids": ids,
+        "file_id": file_id,
+        "filename": file.filename,
+    }
+
+
+class ToggleFileStatusRequest(BaseModel):
+    file_id: str
+    is_active: bool
+
+
+@app.post("/toggle_file_status", tags=["VectorDB"])
+async def toggle_file_status(request: ToggleFileStatusRequest):
+    """
+    Toggle the active status of a file by updating all its document chunks.
+    """
+    try:
+        # Get all documents for this file
+        collection = vector_store.get()
+
+        # Find document IDs that match this file_id
+        doc_ids_to_update = []
+        for i, metadata in enumerate(collection["metadatas"]):
+            if metadata and metadata.get("file_id") == request.file_id:
+                doc_ids_to_update.append(collection["ids"][i])
+
+        if not doc_ids_to_update:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No documents found for file_id: {request.file_id}",
+            )
+
+        # Prepare documents for re-adding with updated metadata
+
+        documents_to_readd = []
+
+        for i, metadata in enumerate(collection["metadatas"]):
+            if metadata and metadata.get("file_id") == request.file_id:
+                # Create updated metadata
+                updated_metadata = metadata.copy()
+                updated_metadata["is_active"] = request.is_active
+
+                # Create document with updated metadata
+                doc = Document(
+                    page_content=collection["documents"][i], metadata=updated_metadata
+                )
+                documents_to_readd.append(doc)
+
+        # Delete old documents and re-add with updated metadata
+        vector_store.delete(ids=doc_ids_to_update)
+        vector_store.add_documents(documents_to_readd, ids=doc_ids_to_update)
+
+        return {
+            "status": status.HTTP_200_OK,
+            "message": f"File {request.file_id} active status updated to {request.is_active}",
+            "updated_chunks": len(doc_ids_to_update),
+        }
+
+    except Exception as e:
+        logger.error(f"Error toggling file status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error toggling file status: {str(e)}",
+        )
+
+
+@app.get("/get_uploaded_files", tags=["VectorDB"])
+async def get_uploaded_files():
+    """
+    Get list of all uploaded files with their active status.
+    """
+    try:
+        collection = vector_store.get()
+
+        # Group documents by file_id to get unique files
+        files_dict = {}
+        for metadata in collection["metadatas"]:
+            if metadata and "file_id" in metadata:
+                file_id = metadata["file_id"]
+                if file_id not in files_dict:
+                    files_dict[file_id] = {
+                        "id": file_id,
+                        "name": metadata.get("filename", "Unknown"),
+                        "isActive": metadata.get("is_active", True),
+                    }
+
+        files_list = list(files_dict.values())
+
+        return {"status": status.HTTP_200_OK, "files": files_list}
+
+    except Exception as e:
+        logger.error(f"Error getting uploaded files: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting uploaded files: {str(e)}",
+        )
+
+
+@app.delete("/delete_file/{file_id}", tags=["VectorDB"])
+async def delete_file(file_id: str):
+    """
+    Delete a file and all its document chunks from the vector store.
+    """
+    try:
+        # Get all documents for this file
+        collection = vector_store.get()
+
+        # Find document IDs that match this file_id
+        doc_ids_to_delete = []
+        for i, metadata in enumerate(collection["metadatas"]):
+            if metadata and metadata.get("file_id") == file_id:
+                doc_ids_to_delete.append(collection["ids"][i])
+
+        if not doc_ids_to_delete:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No documents found for file_id: {file_id}",
+            )
+
+        # Delete all chunks of this file
+        vector_store.delete(ids=doc_ids_to_delete)
+
+        return {
+            "status": status.HTTP_200_OK,
+            "message": f"File {file_id} deleted successfully",
+            "deleted_chunks": len(doc_ids_to_delete),
+        }
+
+    except Exception as e:
+        logger.error(f"Error deleting file: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting file: {str(e)}",
+        )
 
 
 class SearchRequest(BaseModel):
@@ -144,3 +293,37 @@ async def chat(websocket: WebSocket):
 
     except Exception as e:
         print(f"Error in WebSocket Connection: {e}")
+
+
+@app.get("/debug_documents", tags=["VectorDB"])
+async def debug_documents():
+    """
+    Debug endpoint to inspect all documents and their metadata.
+    """
+    try:
+        collection = vector_store.get()
+
+        debug_info = {"total_documents": len(collection["ids"]), "documents": []}
+
+        for i, doc_id in enumerate(collection["ids"]):
+            doc_info = {
+                "id": doc_id,
+                "content_preview": (
+                    collection["documents"][i][:100] + "..."
+                    if len(collection["documents"][i]) > 100
+                    else collection["documents"][i]
+                ),
+                "metadata": (
+                    collection["metadatas"][i] if collection["metadatas"] else None
+                ),
+            }
+            debug_info["documents"].append(doc_info)
+
+        return debug_info
+
+    except Exception as e:
+        logger.error(f"Error in debug_documents: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting debug info: {str(e)}",
+        )

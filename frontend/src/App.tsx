@@ -10,7 +10,6 @@ function App() {
   const [query, setQuery] = useState<string>('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isStreamingUpload, setIsStreamingUpload] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -20,6 +19,25 @@ function App() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const backendUrl = 'http://localhost:8000';
+
+  // Load uploaded files from backend on component mount
+  useEffect(() => {
+    loadUploadedFiles();
+  }, []);
+
+  const loadUploadedFiles = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/get_uploaded_files`);
+      if (response.ok) {
+        const data = await response.json();
+        setUploadedFiles(data.files || []);
+      } else {
+        console.error('Failed to load uploaded files');
+      }
+    } catch (error) {
+      console.error('Error loading uploaded files:', error);
+    }
+  };
 
   useEffect(() => {
     if (isToastVisible) {
@@ -42,7 +60,6 @@ function App() {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      setSelectedFile(file);
       
       const formData = new FormData();
       formData.append('file', file);
@@ -56,18 +73,28 @@ function App() {
         });
 
         if (res.ok) {
-          await res.json();
+          const result = await res.json();
           setToastMessage("✅ File uploaded successfully!");
           setIsToastVisible(true);
 
           const newFile: UploadedFile = {
-            id: file.name,
-            name: file.name,
+            id: result.file_id, // Use file_id from backend
+            name: result.filename,
             isActive: true,
           };
-          if (!uploadedFiles.find(f => f.name === newFile.name)) {
-            setUploadedFiles(prevFiles => [...prevFiles, newFile]);
-          }
+          
+          // Add the new file to the list
+          setUploadedFiles(prevFiles => {
+            // Check if file already exists (by name for user experience)
+            const existingFile = prevFiles.find(f => f.name === newFile.name);
+            if (existingFile) {
+              // Replace existing file with new one
+              return prevFiles.map(f => f.name === newFile.name ? newFile : f);
+            } else {
+              // Add new file
+              return [...prevFiles, newFile];
+            }
+          });
         } else {
           const errorResult = await res.json();
           setToastMessage(`Upload failed: ${errorResult.detail || res.statusText}`);
@@ -79,17 +106,50 @@ function App() {
         setIsToastVisible(true);
       } finally {
         setIsStreamingUpload(false);
-        setSelectedFile(null);
       }
     }
   };
 
-  const toggleFileActiveStatus = (fileId: string) => {
-    setUploadedFiles(prevFiles =>
-      prevFiles.map(file =>
-        file.id === fileId ? { ...file, isActive: !file.isActive } : file
-      )
-    );
+  const toggleFileActiveStatus = async (fileId: string) => {
+    // Find the current file to get its current status
+    const file = uploadedFiles.find(f => f.id === fileId);
+    if (!file) return;
+    
+    const newStatus = !file.isActive;
+    
+    try {
+      const response = await fetch(`${backendUrl}/toggle_file_status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          file_id: fileId,
+          is_active: newStatus
+        }),
+      });
+
+      if (response.ok) {
+        // Update frontend state only after successful backend update
+        setUploadedFiles(prevFiles =>
+          prevFiles.map(file =>
+            file.id === fileId ? { ...file, isActive: newStatus } : file
+          )
+        );
+        
+        const statusText = newStatus ? 'activated' : 'deactivated';
+        setToastMessage(`📄 File ${statusText} successfully!`);
+        setIsToastVisible(true);
+      } else {
+        const errorResult = await response.json();
+        setToastMessage(`Failed to update file status: ${errorResult.detail}`);
+        setIsToastVisible(true);
+      }
+    } catch (error) {
+      console.error('Error toggling file status:', error);
+      setToastMessage('Error updating file status. See console for details.');
+      setIsToastVisible(true);
+    }
   };
 
   const handleNewChat = async () => {
@@ -123,10 +183,27 @@ function App() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleDeleteFile = (fileId: string) => {
-    setUploadedFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-    setToastMessage("🗑️ File deleted successfully!");
-    setIsToastVisible(true);
+  const handleDeleteFile = async (fileId: string) => {
+    try {
+      const response = await fetch(`${backendUrl}/delete_file/${fileId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove file from frontend state only after successful backend deletion
+        setUploadedFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+        setToastMessage("🗑️ File deleted successfully!");
+        setIsToastVisible(true);
+      } else {
+        const errorResult = await response.json();
+        setToastMessage(`Failed to delete file: ${errorResult.detail}`);
+        setIsToastVisible(true);
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      setToastMessage('Error deleting file. See console for details.');
+      setIsToastVisible(true);
+    }
   };
 
   const isAnyFileActive = uploadedFiles.some(file => file.isActive);

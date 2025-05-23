@@ -35,6 +35,7 @@ Your response should:
 8. Never start your answer with "Here is the answer to your question:" or "Based on the provided context, here's the answer to your question:" or "Based on the provided context" or anything similar in different languages, just start with the answer.
 9. Never reference the speaker, instead use the name of the person that is being talked about.
 10. If the context is in a different language than the question, translate the context to the language of the question.
+11. Don't abuse of bullet points, use them when it makes sense.
 
 Current context for the question:
 {context}
@@ -138,14 +139,58 @@ class RAGChain:
         num_docs_to_retrieve = max(num_docs_to_retrieve, 3)
 
         print(f"RAGChain - Number of docs to retrieve (k): {num_docs_to_retrieve}")
-
         print(f"RAGChain - Query rewrite: {retrieval_query_content}")
 
-        docs = self.retriever.invoke(
-            retrieval_query_content,
-            config={"configurable": {"search_kwargs": {"k": num_docs_to_retrieve}}},
-        )
-        return docs
+        # First, let's try with the where clause
+        try:
+            docs = self.retriever.invoke(
+                retrieval_query_content,
+                config={
+                    "configurable": {
+                        "search_kwargs": {
+                            "k": num_docs_to_retrieve
+                            * 3,  # Get more docs to filter from
+                            "where": {
+                                "is_active": True
+                            },  # Only search active documents
+                        }
+                    }
+                },
+            )
+            print(f"RAGChain - Retrieved {len(docs)} documents using where clause")
+        except Exception as e:
+            print(f"RAGChain - Where clause failed: {e}")
+            # Fallback: get all documents and filter manually
+            docs = self.retriever.invoke(
+                retrieval_query_content,
+                config={
+                    "configurable": {
+                        "search_kwargs": {
+                            "k": num_docs_to_retrieve
+                            * 3,  # Get more docs to filter from
+                        }
+                    }
+                },
+            )
+            print(f"RAGChain - Retrieved {len(docs)} documents without filtering")
+
+        # Manual filtering to ensure we only get active documents
+        active_docs = []
+        for doc in docs:
+            print(f"RAGChain - Document metadata: {doc.metadata}")
+            if doc.metadata and doc.metadata.get("is_active", False):
+                active_docs.append(doc)
+
+        # Limit to requested number of documents
+        active_docs = active_docs[:num_docs_to_retrieve]
+
+        print(f"RAGChain - Final active documents: {len(active_docs)}")
+
+        # If no active documents found, return empty list
+        if not active_docs:
+            print("RAGChain - WARNING: No active documents found!")
+
+        return active_docs
 
     def _prepare_rag_inputs(self, query: str):
         loaded_memory_vars = self.chat_memory.load_memory_variables({})

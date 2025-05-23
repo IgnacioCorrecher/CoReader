@@ -100,15 +100,9 @@ async def toggle_file_status(request: ToggleFileStatusRequest):
             if metadata and metadata.get("file_id") == request.file_id:
                 doc_ids_to_update.append(collection["ids"][i])
 
-        if not doc_ids_to_update:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No documents found for file_id: {request.file_id}",
-            )
-
         # Prepare documents for re-adding with updated metadata
 
-        documents_to_readd = []
+        documents_to_read = []
 
         for i, metadata in enumerate(collection["metadatas"]):
             if metadata and metadata.get("file_id") == request.file_id:
@@ -120,11 +114,11 @@ async def toggle_file_status(request: ToggleFileStatusRequest):
                 doc = Document(
                     page_content=collection["documents"][i], metadata=updated_metadata
                 )
-                documents_to_readd.append(doc)
+                documents_to_read.append(doc)
 
         # Delete old documents and re-add with updated metadata
         vector_store.delete(ids=doc_ids_to_update)
-        vector_store.add_documents(documents_to_readd, ids=doc_ids_to_update)
+        vector_store.add_documents(documents_to_read, ids=doc_ids_to_update)
 
         return {
             "status": status.HTTP_200_OK,

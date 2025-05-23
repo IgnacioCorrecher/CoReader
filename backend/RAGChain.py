@@ -189,5 +189,10 @@ class RAGChain:
             print(f"RAGChain - LLM Answer (invoked): '{full_response_content}'")
             return full_response_content
 
+    def clear_memory(self):
+        """Clear the chat memory to reset the conversation history."""
+        self.chat_memory.clear()
+        print("RAGChain - Memory cleared successfully")
+
 
 rag_chain = RAGChain(llm, retriever, custom_rag_prompt)

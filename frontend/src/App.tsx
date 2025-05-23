@@ -19,6 +19,8 @@ function App() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const backendUrl = 'http://localhost:8000';
+
   useEffect(() => {
     if (isToastVisible) {
       const timer = setTimeout(() => {
@@ -48,7 +50,7 @@ function App() {
       setIsStreamingUpload(true);
 
       try {
-        const res = await fetch('http://localhost:8000/upload_file', {
+        const res = await fetch(`${backendUrl}/upload_file`, {
           method: 'POST',
           body: formData,
         });
@@ -90,9 +92,30 @@ function App() {
     );
   };
 
-  const handleNewChat = () => {
-    setChatMessages([]);
-    setToastMessage('⚠️ Chat cleared.');
+  const handleNewChat = async () => {
+    try {
+      // Clear frontend chat messages
+      setChatMessages([]);
+      
+      // Clear backend memory
+      const response = await fetch(`${backendUrl}/clear_memory`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setToastMessage('⚠️ Chat and memory cleared.');
+      } else {
+        console.error('Failed to clear memory on backend');
+        setToastMessage('⚠️ Chat cleared (frontend only).');
+      }
+    } catch (error) {
+      console.error('Error clearing memory:', error);
+      setToastMessage('⚠️ Chat cleared (frontend only).');
+    }
+    
     setIsToastVisible(true);
   };
 
@@ -130,7 +153,7 @@ function App() {
       return;
     }
 
-    const websocket = new WebSocket('ws://localhost:8000/ws/stream');
+    const websocket = new WebSocket(`${backendUrl}/ws/stream`);
     setIsStreaming(true);
 
     let aiMessageId = 'ai-' + Date.now();

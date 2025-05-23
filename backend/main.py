@@ -102,6 +102,20 @@ async def rag_chain_invoke(request: RAGRequest):
     return {"status": status.HTTP_200_OK, "response": response}
 
 
+@app.post("/clear_memory", tags=["RAG"])
+async def clear_memory():
+    """Clear the RAG chain memory to reset conversation history."""
+    try:
+        rag_chain.clear_memory()
+        return {"status": status.HTTP_200_OK, "message": "Memory cleared successfully"}
+    except Exception as e:
+        logger.error(f"Error clearing memory: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error clearing memory: {str(e)}",
+        )
+
+
 @app.websocket("/ws/stream")
 async def chat(websocket: WebSocket):
     await websocket.accept()

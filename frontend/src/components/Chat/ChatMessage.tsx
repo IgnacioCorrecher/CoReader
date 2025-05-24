@@ -1,6 +1,7 @@
 import type { ChatMessage as ChatMessageType } from '../../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import Citations from './Citations';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -14,6 +15,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
           </ReactMarkdown>
+          {message.type === 'ai' && message.citations && (
+            <Citations citations={message.citations} />
+          )}
         </div>
       </div>
     </div>

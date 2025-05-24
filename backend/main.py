@@ -275,10 +275,24 @@ async def rag_chain_invoke(request: RAGRequest):
         )
 
     # Query the RAG Chain
-    response = rag_chain.process_query(query=query, stream_response=False)
+    response, citations = rag_chain.process_query(query=query, stream_response=False)
+
+    # Format citations
+    formatted_citations = []
+    for doc in citations:
+        citation = {
+            "content": doc.page_content,
+            "filename": doc.metadata.get("filename", "Unknown"),
+            "file_id": doc.metadata.get("file_id", ""),
+        }
+        formatted_citations.append(citation)
 
     # Return Success
-    return {"status": status.HTTP_200_OK, "response": response}
+    return {
+        "status": status.HTTP_200_OK,
+        "response": response,
+        "citations": formatted_citations,
+    }
 
 
 @app.post("/clear_memory", tags=["RAG"])
@@ -312,11 +326,29 @@ async def chat(websocket: WebSocket):
             # Else get query
             query = data["query"]
 
+            # Get citations first (but don't send them yet)
+            retrieved_docs = rag_chain.get_citations_for_query(query)
+
             # Generate response in real time
             for token in rag_chain.process_query(query=query, stream_response=True):
                 await websocket.send_text(token.content)
                 await asyncio.sleep(0)
                 response += token.content
+
+            # Send citations after the response is complete
+            if retrieved_docs:
+                citations = []
+                for doc in retrieved_docs:
+                    citation = {
+                        "content": doc.page_content,
+                        "filename": doc.metadata.get("filename", "Unknown"),
+                        "file_id": doc.metadata.get("file_id", ""),
+                    }
+                    citations.append(citation)
+
+                import json
+
+                await websocket.send_text(f"<<CITATIONS>>{json.dumps(citations)}")
 
             # End of response
             await websocket.send_text("<<END>>")
@@ -379,6 +411,7 @@ async def debug_file_status(file_id: str):
                         if len(collection["documents"][i]) > 100
                         else collection["documents"][i]
                     ),
+                    "content_length": len(collection["documents"][i]),
                     "full_metadata": metadata,
                 }
                 file_chunks.append(chunk_info)
@@ -408,4 +441,52 @@ async def debug_file_status(file_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting file debug info: {str(e)}",
+        )
+
+
+@app.post("/debug_chunking", tags=["Debug"])
+async def debug_chunking(text: str):
+    """
+    Debug endpoint to test how text would be chunked.
+    """
+    try:
+        # Test the text formatter
+        doc_processor = DocProcessing("test.txt", text.encode("utf-8"))
+        formatted_text = doc_processor.text_formatter(text)
+
+        # Test the text splitter
+        chunks = text_splitter.create_documents([formatted_text])
+
+        chunk_info = []
+        for i, chunk in enumerate(chunks):
+            chunk_info.append(
+                {
+                    "chunk_index": i,
+                    "content_length": len(chunk.page_content),
+                    "content_preview": (
+                        chunk.page_content[:200] + "..."
+                        if len(chunk.page_content) > 200
+                        else chunk.page_content
+                    ),
+                    "content": chunk.page_content,
+                }
+            )
+
+        return {
+            "original_length": len(text),
+            "formatted_length": len(formatted_text),
+            "total_chunks": len(chunks),
+            "formatted_text_preview": (
+                formatted_text[:500] + "..."
+                if len(formatted_text) > 500
+                else formatted_text
+            ),
+            "chunks": chunk_info,
+        }
+
+    except Exception as e:
+        logger.error(f"Error in debug_chunking: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error testing chunking: {str(e)}",
         )

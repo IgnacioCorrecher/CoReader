@@ -8,8 +8,33 @@ class DocProcessing:
         self.file_content = file_content
 
     def text_formatter(self, file_str: str) -> str:
-        formatted_text = file_str.replace("\n", " ").strip()
-        return formatted_text
+        # Improve text formatting to preserve natural breaks for better chunking
+        import re
+
+        # First, normalize line endings
+        formatted_text = file_str.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Remove excessive whitespace but preserve paragraph structure
+        # Replace 3+ consecutive newlines with exactly 2 newlines (paragraph breaks)
+        formatted_text = re.sub(r"\n{3,}", "\n\n", formatted_text)
+
+        # Keep double newlines as paragraph separators
+        # For single newlines, replace with space only if they're not at the end of sentences
+        # This preserves natural sentence and paragraph boundaries
+        formatted_text = re.sub(r"(?<![.!?])\n(?![A-Z\n])", " ", formatted_text)
+
+        # Clean up multiple spaces but keep single spaces
+        formatted_text = re.sub(r" {2,}", " ", formatted_text)
+
+        # Ensure there are paragraph breaks for better chunking
+        # Add paragraph breaks before common chapter/section indicators
+        formatted_text = re.sub(
+            r"(?<!^)(?=Chapter \d+|CHAPTER \d+|Section \d+|SECTION \d+)",
+            "\n\n",
+            formatted_text,
+        )
+
+        return formatted_text.strip()
 
     def process_doc(self) -> str:
         if self.file_path.endswith(".txt"):

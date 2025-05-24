@@ -1,6 +1,6 @@
 import './App.css'
 import { useState, useEffect, useRef } from 'react'
-import type { ChatMessage, UploadedFile } from './types'
+import type { ChatMessage, UploadedFile, Citation } from './types'
 import { ThemeProvider } from './context/ThemeContext'
 import Sidebar from './components/Sidebar/Sidebar'
 import ChatContainer from './components/Chat/ChatContainer'
@@ -241,11 +241,13 @@ function App() {
 
     let aiMessageId = 'ai-' + Date.now();
     let currentAiContent = '';
+    let citations: Citation[] = [];
 
     const initialAiMessage: ChatMessage = {
       id: aiMessageId,
       type: 'ai',
       content: '', 
+      citations: []
     };
     setChatMessages(prevMessages => [...prevMessages, initialAiMessage]);
 
@@ -270,6 +272,20 @@ function App() {
         );
         setIsStreaming(false);
         websocket.close();
+        return;
+      }
+      if (data.startsWith('<<CITATIONS>>')) {
+        try {
+          const citationsJson = data.replace('<<CITATIONS>>', '');
+          citations = JSON.parse(citationsJson);
+          setChatMessages(prevMessages =>
+            prevMessages.map(msg =>
+              msg.id === aiMessageId ? { ...msg, citations } : msg
+            )
+          );
+        } catch (error) {
+          console.error('Error parsing citations:', error);
+        }
         return;
       }
       

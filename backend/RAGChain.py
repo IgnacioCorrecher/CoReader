@@ -1,6 +1,10 @@
+import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_text_splitters import CharacterTextSplitter
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+# from langchain_experimental.text_splitter import SemanticChunker
 from langchain_chroma import Chroma
 from langchain_core.prompts import PromptTemplate
 from langchain_core.vectorstores.base import VectorStoreRetriever
@@ -14,15 +18,25 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite")
 # Load embeddings model
 embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-# Text splitter
-text_splitter = CharacterTextSplitter(
-    chunk_size=600, chunk_overlap=120, length_function=len
+# Text splitter - Using RecursiveCharacterTextSplitter for better chunking
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200,
+    length_function=len,
+    separators=[
+        "\n\n",
+        "\n",
+        ".",
+        "!",
+        "?",
+    ],
+    keep_separator=True,  # Keep separators to maintain context
 )
 
 vector_store = Chroma(
     collection_name="test_collection",
     embedding_function=embeddings,
-    persist_directory="./chroma_db",  # This will create a persistent database
+    persist_directory=os.path.join(os.path.dirname(__file__), "chroma_db"),
 )
 
 retriever = vector_store.as_retriever()
@@ -88,21 +102,6 @@ class Utils:
 
         return retrieval_query
 
-    def measure_difficulty(self, query: str):
-        difficulty_prompt = f"""You are a helpful assistant. Your task is to measure the difficulty of a user's query.
-         - The difficulty is measured on a scale of 1 to 10, where 1 is the easiest and 10 is the hardest.
-         - Make no comments, just return the difficulty score.
-         - The difficulty score should be an integer between 1 and 10.
-         - This difficulty score is used to determine the number of documents to retrieve from the vector database, so make sure to return a difficulty score that is realistic.
-         - The difficulty score should be based on the complexity of the query, the length of the query, and the number of documents to retrieve.
-
-        User's Query: {query}
-        """
-
-        difficulty_score = self.llm.invoke(difficulty_prompt)
-
-        return difficulty_score
-
     def format_docs(self, docs):
         # Document parse to string concat
         return "\n\n".join(doc.page_content for doc in docs)
@@ -128,6 +127,81 @@ class RAGChain:
             k=memory_window_k,
         )
 
+    def rank_documents(self, docs_with_scores, query: str, max_docs: int = 5):
+        """
+        Rank documents based on similarity scores and other factors.
+        Returns the top-ranked documents up to max_docs limit.
+        """
+        if not docs_with_scores:
+            return []
+
+        # Extract query keywords for relevance scoring
+        query_keywords = set(query.lower().split())
+
+        ranked_docs = []
+        for doc, score in docs_with_scores:
+            # Base similarity score (lower is better for distance, so invert it)
+            similarity_score = 1.0 / (1.0 + score) if score > 0 else 1.0
+
+            # Content relevance score based on keyword matching
+            doc_text = doc.page_content.lower()
+            keyword_matches = sum(
+                1 for keyword in query_keywords if keyword in doc_text
+            )
+            keyword_score = (
+                keyword_matches / len(query_keywords) if query_keywords else 0
+            )
+
+            # Document length score (normalized, prefer medium-length docs)
+            doc_length = len(doc.page_content)
+            # Optimal length around 800-1200 characters, score decreases for very short or very long
+            if doc_length < 100:
+                length_score = 0.3  # Too short
+            elif 800 <= doc_length <= 1200:
+                length_score = 1.0  # Optimal
+            elif doc_length > 2000:
+                length_score = 0.7  # Too long
+            else:
+                length_score = 0.8  # Decent length
+
+            # Combined ranking score (weighted combination)
+            final_score = (
+                0.6 * similarity_score  # Primary factor: similarity
+                + 0.3 * keyword_score  # Secondary: keyword relevance
+                + 0.1 * length_score  # Tertiary: document length
+            )
+
+            ranked_docs.append(
+                (
+                    doc,
+                    final_score,
+                    {
+                        "similarity_score": similarity_score,
+                        "keyword_score": keyword_score,
+                        "length_score": length_score,
+                        "final_score": final_score,
+                        "original_distance": score,
+                    },
+                )
+            )
+
+        # Sort by final score (descending - higher is better)
+        ranked_docs.sort(key=lambda x: x[1], reverse=True)
+
+        # Log ranking information
+        print("RAGChain - Document ranking results:")
+        for i, (doc, final_score, scores) in enumerate(ranked_docs[:max_docs]):
+            print(
+                f"  Rank {i + 1}: Score={final_score:.3f} "
+                f"(sim={scores['similarity_score']:.3f}, "
+                f"kw={scores['keyword_score']:.3f}, "
+                f"len={scores['length_score']:.3f}) "
+                f"Content preview: {doc.page_content[:100]}..."
+            )
+
+        # Return top documents only
+        return [doc for doc, _, _ in ranked_docs[:max_docs]]
+
     def get_retrieved_documents(self, query: str, history_str: str = ""):
         print(f"RAGChain - Input User Query: '{query}'")
 
@@ -136,80 +210,71 @@ class RAGChain:
             retrieval_query_result, "content", str(retrieval_query_result)
         )
 
-        difficulty_score_result = self.utils.measure_difficulty(query)
-        difficulty_score_str = getattr(
-            difficulty_score_result, "content", str(difficulty_score_result)
-        ).strip()
-        print(f"RAGChain - Measured Difficulty (raw): '{difficulty_score_str}'")
-
-        num_docs_to_retrieve = 3  # Default k
-        try:
-            difficulty = int(difficulty_score_str)
-            if 1 <= difficulty <= 10:
-                num_docs_to_retrieve = difficulty
-            else:
-                print(
-                    f"RAGChain - Difficulty score {difficulty} out of range (1-10). Defaulting to k={num_docs_to_retrieve}"
-                )
-        except ValueError:
-            print(
-                f"RAGChain - Could not parse difficulty '{difficulty_score_str}'. Defaulting to k={num_docs_to_retrieve}"
-            )
-        num_docs_to_retrieve = max(num_docs_to_retrieve, 3)
-
-        print(f"RAGChain - Number of docs to retrieve (k): {num_docs_to_retrieve}")
         print(f"RAGChain - Query rewrite: {retrieval_query_content}")
 
-        # First, let's try with the where clause
+        # Get more documents for ranking (up to 15 to have good selection)
+        initial_k = 15
+
+        # Try to get documents with similarity scores for better ranking
         try:
-            docs = self.retriever.invoke(
+            # Use similarity_search_with_score to get both documents and scores
+            docs_with_scores = vector_store.similarity_search_with_score(
                 retrieval_query_content,
-                config={
-                    "configurable": {
-                        "search_kwargs": {
-                            "k": num_docs_to_retrieve
-                            * 3,  # Get more docs to filter from
-                            "where": {
-                                "is_active": True
-                            },  # Only search active documents
-                        }
-                    }
-                },
+                k=initial_k,
+                filter={"is_active": True},  # Filter for active documents
             )
-            print(f"RAGChain - Retrieved {len(docs)} documents using where clause")
+            print(
+                f"RAGChain - Retrieved {len(docs_with_scores)} documents with scores using filter"
+            )
         except Exception as e:
-            print(f"RAGChain - Where clause failed: {e}")
+            print(f"RAGChain - Filtered search failed: {e}")
             # Fallback: get all documents and filter manually
-            docs = self.retriever.invoke(
-                retrieval_query_content,
-                config={
-                    "configurable": {
-                        "search_kwargs": {
-                            "k": num_docs_to_retrieve
-                            * 3,  # Get more docs to filter from
-                        }
-                    }
-                },
-            )
-            print(f"RAGChain - Retrieved {len(docs)} documents without filtering")
+            try:
+                docs_with_scores = vector_store.similarity_search_with_score(
+                    retrieval_query_content, k=initial_k
+                )
+                print(
+                    f"RAGChain - Retrieved {len(docs_with_scores)} documents with scores (no filter)"
+                )
 
-        # Manual filtering to ensure we only get active documents
-        active_docs = []
-        for doc in docs:
-            print(f"RAGChain - Document metadata: {doc.metadata}")
-            if doc.metadata and doc.metadata.get("is_active", False):
-                active_docs.append(doc)
-
-        # Limit to requested number of documents
-        active_docs = active_docs[:num_docs_to_retrieve]
-
-        print(f"RAGChain - Final active documents: {len(active_docs)}")
+                # Manual filtering to ensure we only get active documents
+                filtered_docs_with_scores = []
+                for doc, score in docs_with_scores:
+                    if doc.metadata and doc.metadata.get("is_active", False):
+                        filtered_docs_with_scores.append((doc, score))
+                docs_with_scores = filtered_docs_with_scores
+                print(
+                    f"RAGChain - After manual filtering: {len(docs_with_scores)} active documents"
+                )
+            except Exception as e2:
+                print(f"RAGChain - Similarity search with scores failed: {e2}")
+                # Final fallback: use regular retriever
+                docs = self.retriever.invoke(
+                    retrieval_query_content,
+                    config={"configurable": {"search_kwargs": {"k": initial_k}}},
+                )
+                # Convert to docs_with_scores format (use dummy scores)
+                docs_with_scores = [
+                    (doc, 0.5)
+                    for doc in docs
+                    if doc.metadata and doc.metadata.get("is_active", False)
+                ]
+                print(
+                    f"RAGChain - Using fallback retriever: {len(docs_with_scores)} documents"
+                )
 
         # If no active documents found, return empty list
-        if not active_docs:
+        if not docs_with_scores:
             print("RAGChain - WARNING: No active documents found!")
+            return []
 
-        return active_docs
+        # Rank documents and return top ones
+        ranked_docs = self.rank_documents(
+            docs_with_scores, retrieval_query_content, max_docs=5
+        )
+
+        print(f"RAGChain - Final ranked documents: {len(ranked_docs)}")
+        return ranked_docs
 
     def _prepare_rag_inputs(self, query: str):
         loaded_memory_vars = self.chat_memory.load_memory_variables({})
@@ -225,10 +290,12 @@ class RAGChain:
         }
         final_prompt_str = self.prompt.format(**prompt_inputs)
 
-        return final_prompt_str, query
+        return final_prompt_str, query, docs
 
     def process_query(self, query: str, stream_response: bool = True):
-        final_prompt_str, original_query = self._prepare_rag_inputs(query)
+        final_prompt_str, original_query, retrieved_docs = self._prepare_rag_inputs(
+            query
+        )
 
         if stream_response:
             response_parts = []
@@ -241,6 +308,7 @@ class RAGChain:
                 {"question": original_query}, {"answer": full_response_content}
             )
             print(f"RAGChain - LLM Answer (streamed): '{full_response_content}'")
+            return retrieved_docs  # Return docs for citations when streaming
         else:
             full_response = self.llm.invoke(final_prompt_str)
             full_response_content = getattr(
@@ -251,7 +319,14 @@ class RAGChain:
                 {"question": original_query}, {"answer": full_response_content}
             )
             print(f"RAGChain - LLM Answer (invoked): '{full_response_content}'")
-            return full_response_content
+            return full_response_content, retrieved_docs
+
+    def get_citations_for_query(self, query: str):
+        """Get citations for a given query without generating a response"""
+        loaded_memory_vars = self.chat_memory.load_memory_variables({})
+        history_str = loaded_memory_vars.get("chat_history", "")
+        docs = self.get_retrieved_documents(query, history_str)
+        return docs
 
     def clear_memory(self):
         """Clear the chat memory to reset the conversation history."""

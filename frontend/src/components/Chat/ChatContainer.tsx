@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { ChatMessage as ChatMessageType } from '../../types';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
+import OwlLogo from '../common/OwlLogo';
 
 const HamburgerIcon = ({ color = 'currentColor' }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -55,6 +56,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       </button>
       {messages.length === 0 ? (
         <div className="welcome-screen">
+          <OwlLogo size={120} className="welcome-logo" />
           <h1>CoReader</h1>
           <p>Ask me anything about your uploaded documents!</p>
         </div>

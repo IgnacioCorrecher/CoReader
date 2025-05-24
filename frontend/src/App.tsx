@@ -140,6 +140,12 @@ function App() {
         const statusText = newStatus ? 'activated' : 'deactivated';
         setToastMessage(`📄 File ${statusText} successfully!`);
         setIsToastVisible(true);
+      } else if (response.status === 404) {
+        // File not found in vector store - remove from frontend
+        const errorResult = await response.json();
+        setUploadedFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
+        setToastMessage(`⚠️ File not found in database and was removed from list: ${errorResult.detail}`);
+        setIsToastVisible(true);
       } else {
         const errorResult = await response.json();
         setToastMessage(`Failed to update file status: ${errorResult.detail}`);

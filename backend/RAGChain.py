@@ -16,10 +16,14 @@ embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
 # Text splitter
 text_splitter = CharacterTextSplitter(
-    chunk_size=1000, chunk_overlap=200, length_function=len
+    chunk_size=600, chunk_overlap=120, length_function=len
 )
 
-vector_store = Chroma(collection_name="test_collection", embedding_function=embeddings)
+vector_store = Chroma(
+    collection_name="test_collection",
+    embedding_function=embeddings,
+    persist_directory="./chroma_db",  # This will create a persistent database
+)
 
 retriever = vector_store.as_retriever()
 
@@ -32,10 +36,17 @@ Your response should:
 5. The response should be in the same language as the question.
 6. The final answer should be in markdown format, use bold, italic.
 7. Don't abuse the use of markdown formatting, use it when it makes sense.
-8. Never start your answer with "Here is the answer to your question:" or "Based on the provided context, here's the answer to your question:" or "Based on the provided context" or anything similar in different languages, just start with the answer.
-9. Never reference the speaker, instead use the name of the person that is being talked about.
-10. If the context is in a different language than the question, translate the context to the language of the question.
-11. Don't abuse of bullet points, use them when it makes sense.
+8. Never reference the speaker, instead use the name of the person that is being talked about.
+9. If the context is in a different language than the question, translate the context to the language of the question.
+10. Don't abuse of bullet points, use them when it makes sense.
+
+Banned words and sentences:
+1. "Here is the answer to your question:"
+2. "Based on the provided context, here's the answer to your question:"
+3. "Based on the provided context"
+4. "Según el contexto proporcionado"
+5. "En el contexto proporcionado"
+6. "En el contexto proporcionado, la respuesta a la pregunta es:"
 
 Current context for the question:
 {context}
@@ -59,6 +70,12 @@ class Utils:
         Then, rephrase the user's query into a concise statement or paragraph suitable for a semantic similarity search on a vector database.
         This rewritten query should incorporate resolved pronouns or context from the chat history to be self-contained and specific.
         Make no comments, just return the rewritten query.
+        The rewritten query should:
+        1. Be in the same language as the question.
+        2. Be concise and to the point.
+        3. Be specific and not too general.
+        4. Be clear and not too vague.
+        5. Be easy to understand and not too complex.
 
         Chat History:
         {history}
@@ -76,6 +93,8 @@ class Utils:
          - The difficulty is measured on a scale of 1 to 10, where 1 is the easiest and 10 is the hardest.
          - Make no comments, just return the difficulty score.
          - The difficulty score should be an integer between 1 and 10.
+         - This difficulty score is used to determine the number of documents to retrieve from the vector database, so make sure to return a difficulty score that is realistic.
+         - The difficulty score should be based on the complexity of the query, the length of the query, and the number of documents to retrieve.
 
         User's Query: {query}
         """

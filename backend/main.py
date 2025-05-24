@@ -100,8 +100,15 @@ async def toggle_file_status(request: ToggleFileStatusRequest):
             if metadata and metadata.get("file_id") == request.file_id:
                 doc_ids_to_update.append(collection["ids"][i])
 
-        # Prepare documents for re-adding with updated metadata
+        # Check if file exists
+        if not doc_ids_to_update:
+            logger.warning(f"No documents found for file_id: {request.file_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No documents found for file_id: {request.file_id}. The file may have been deleted or corrupted.",
+            )
 
+        # Prepare documents for re-adding with updated metadata
         documents_to_read = []
 
         for i, metadata in enumerate(collection["metadatas"]):
@@ -117,6 +124,9 @@ async def toggle_file_status(request: ToggleFileStatusRequest):
                 documents_to_read.append(doc)
 
         # Delete old documents and re-add with updated metadata
+        logger.info(
+            f"Updating {len(doc_ids_to_update)} document chunks for file {request.file_id} to active={request.is_active}"
+        )
         vector_store.delete(ids=doc_ids_to_update)
         vector_store.add_documents(documents_to_read, ids=doc_ids_to_update)
 
@@ -126,6 +136,8 @@ async def toggle_file_status(request: ToggleFileStatusRequest):
             "updated_chunks": len(doc_ids_to_update),
         }
 
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         logger.error(f"Error toggling file status: {str(e)}")
         raise HTTPException(
@@ -142,20 +154,44 @@ async def get_uploaded_files():
     try:
         collection = vector_store.get()
 
-        # Group documents by file_id to get unique files
+        # Group documents by file_id to get unique files and track active status
         files_dict = {}
         for metadata in collection["metadatas"]:
             if metadata and "file_id" in metadata:
                 file_id = metadata["file_id"]
+                is_active = metadata.get("is_active", True)
+
                 if file_id not in files_dict:
                     files_dict[file_id] = {
                         "id": file_id,
                         "name": metadata.get("filename", "Unknown"),
-                        "isActive": metadata.get("is_active", True),
+                        "isActive": is_active,
+                        "chunk_count": 1,
+                        "active_chunks": 1 if is_active else 0,
                     }
+                else:
+                    files_dict[file_id]["chunk_count"] += 1
+                    if is_active:
+                        files_dict[file_id]["active_chunks"] += 1
 
-        files_list = list(files_dict.values())
+                    # File is considered active if ALL chunks are active
+                    files_dict[file_id]["isActive"] = (
+                        files_dict[file_id]["active_chunks"]
+                        == files_dict[file_id]["chunk_count"]
+                    )
 
+        # Clean up the response to only include necessary fields
+        files_list = []
+        for file_data in files_dict.values():
+            files_list.append(
+                {
+                    "id": file_data["id"],
+                    "name": file_data["name"],
+                    "isActive": file_data["isActive"],
+                }
+            )
+
+        logger.info(f"Found {len(files_list)} files in vector store")
         return {"status": status.HTTP_200_OK, "files": files_list}
 
     except Exception as e:
@@ -320,4 +356,56 @@ async def debug_documents():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting debug info: {str(e)}",
+        )
+
+
+@app.get("/debug_file_status/{file_id}", tags=["VectorDB"])
+async def debug_file_status(file_id: str):
+    """
+    Debug endpoint to inspect a specific file's status and chunks.
+    """
+    try:
+        collection = vector_store.get()
+
+        file_chunks = []
+        for i, metadata in enumerate(collection["metadatas"]):
+            if metadata and metadata.get("file_id") == file_id:
+                chunk_info = {
+                    "chunk_id": collection["ids"][i],
+                    "is_active": metadata.get("is_active", "NOT_SET"),
+                    "filename": metadata.get("filename", "NOT_SET"),
+                    "content_preview": (
+                        collection["documents"][i][:100] + "..."
+                        if len(collection["documents"][i]) > 100
+                        else collection["documents"][i]
+                    ),
+                    "full_metadata": metadata,
+                }
+                file_chunks.append(chunk_info)
+
+        if not file_chunks:
+            return {
+                "file_id": file_id,
+                "found": False,
+                "message": "No chunks found for this file_id",
+            }
+
+        active_count = sum(1 for chunk in file_chunks if chunk["is_active"] is True)
+        inactive_count = sum(1 for chunk in file_chunks if chunk["is_active"] is False)
+
+        return {
+            "file_id": file_id,
+            "found": True,
+            "total_chunks": len(file_chunks),
+            "active_chunks": active_count,
+            "inactive_chunks": inactive_count,
+            "file_should_be_active": active_count == len(file_chunks),
+            "chunks": file_chunks,
+        }
+
+    except Exception as e:
+        logger.error(f"Error in debug_file_status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting file debug info: {str(e)}",
         )
